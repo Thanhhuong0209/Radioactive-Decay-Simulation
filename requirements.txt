@@ -6,3 +6,4 @@ pymc
 streamlit
 filterpy 
 dask[dataframe] 
+streamlit-autorefresh
