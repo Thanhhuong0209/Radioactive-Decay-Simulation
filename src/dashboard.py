@@ -86,77 +86,130 @@ if st.session_state['run_analysis']:
         st.write("Number of data rows after filtering:", len(df_opr))
         st.dataframe(df_opr.head())
         # Time filtering
-        if 'date' in df_opr.columns:
-            min_date = pd.to_datetime(df_opr['date']).min()
-            max_date = pd.to_datetime(df_opr['date']).max()
-            date_range = st.sidebar.date_input("Time range", [min_date, max_date], min_value=min_date, max_value=max_date)
-            if len(date_range) == 2:
-                df_opr['date'] = pd.to_datetime(df_opr['date']).dt.tz_localize(None)
-                start = pd.to_datetime(date_range[0])
-                end = pd.to_datetime(date_range[1])
-                df_opr = df_opr[(df_opr['date'] >= start) & (df_opr['date'] <= end)]
+        try:
+            if 'date' in df_opr.columns:
+                min_date = pd.to_datetime(df_opr['date']).min()
+                max_date = pd.to_datetime(df_opr['date']).max()
+                import datetime
+                if isinstance(min_date, pd.Timestamp):
+                    min_date = min_date.date()
+                else:
+                    min_date = datetime.date.today()
+                if isinstance(max_date, pd.Timestamp):
+                    max_date = max_date.date()
+                else:
+                    max_date = datetime.date.today()
+                date_range = st.sidebar.date_input("Time range", [min_date, max_date])
+                if len(date_range) == 2:
+                    # Ép kiểu về DataFrame và kiểm tra hasattr trước khi dùng .dt
+                    if 'date' in df_opr.columns:
+                        if not pd.api.types.is_datetime64_any_dtype(df_opr['date']):
+                            df_opr['date'] = pd.to_datetime(df_opr['date'], errors='coerce')
+                        if hasattr(df_opr['date'], 'dt'):
+                            df_opr['date'] = df_opr['date'].dt.tz_localize(None)
+                    start = pd.to_datetime(date_range[0])
+                    end = pd.to_datetime(date_range[1])
+                    df_opr = df_opr[(df_opr['date'] >= start) & (df_opr['date'] <= end)]
+            # Luôn ép kiểu về DataFrame sau khi lọc
+            df_opr = pd.DataFrame(df_opr)
+        except Exception as e:
+            st.error(f"[Lỗi lọc thời gian]: {e}")
         # Radiation level filter
-        min_rad = float(df_opr['radiation'].min())
-        max_rad = float(df_opr['radiation'].max())
-        rad_range = st.sidebar.slider("Radiation level range (μSv/h)", min_rad, max_rad, (min_rad, max_rad), step=0.01)
-        df_opr = df_opr[(df_opr['radiation'] >= rad_range[0]) & (df_opr['radiation'] <= rad_range[1])]
+        try:
+            min_rad = float(df_opr['radiation'].min())
+            max_rad = float(df_opr['radiation'].max())
+            rad_range = st.sidebar.slider("Radiation level range (μSv/h)", min_rad, max_rad, (min_rad, max_rad), step=0.01)
+            df_opr = df_opr[(df_opr['radiation'] >= rad_range[0]) & (df_opr['radiation'] <= rad_range[1])]
+            df_opr = pd.DataFrame(df_opr)
+        except Exception as e:
+            st.error(f"[Lỗi lọc mức phóng xạ]: {e}")
         st.write("Number of data rows after time & radiation filtering:", len(df_opr))
-        st.dataframe(df_opr.head())
+        if isinstance(df_opr, pd.DataFrame) and hasattr(df_opr, 'head'):
+            st.dataframe(df_opr.head())
         if len(df_opr) == 0:
             st.error("No data left after time & radiation filtering! Please broaden your filters.")
         else:
             # If country column exists, allow filtering, otherwise skip
-            if 'country' in df_opr.columns:
-                countries = sorted(df_opr['country'].dropna().unique())
-                country = st.sidebar.selectbox("Select country", ["All"] + countries)
-                if country != "All":
-                    df_opr = df_opr[df_opr['country'] == country]
-            else:
-                st.sidebar.info("Data does not have a 'country' column, skipping country filter.")
+            try:
+                if isinstance(df_opr, pd.DataFrame) and 'country' in df_opr.columns:
+                    countries = sorted(df_opr['country'].dropna().unique())
+                    country = st.sidebar.selectbox("Select country", ["All"] + list(countries))
+                    if country != "All":
+                        df_opr = df_opr[df_opr['country'] == country]
+                else:
+                    st.sidebar.info("Data does not have a 'country' column, skipping country filter.")
+            except Exception as e:
+                st.error(f"[Lỗi lọc quốc gia]: {e}")
             # Hotspot analysis
-            hotspot = analysis.detect_geospatial_peaks(df_opr, grid_size=grid_size, threshold=who_threshold)
+            try:
+                if len(df_opr) > 0:
+                    hotspot = analysis.detect_geospatial_peaks(df_opr, grid_size=grid_size, threshold=who_threshold)
+                    hotspot = pd.DataFrame(hotspot)
+                else:
+                    hotspot = pd.DataFrame()
+            except Exception as e:
+                st.error(f"[Lỗi hotspot analysis]: {e}")
+                hotspot = pd.DataFrame()
             # Rolling mean, peak analysis
-            df_opr_analyzed = analysis.analyze_time_series_opr(df_opr, threshold=who_threshold)
+            try:
+                if len(df_opr) > 0:
+                    df_opr_analyzed = analysis.analyze_time_series_opr(df_opr, threshold=who_threshold)
+                    df_opr_analyzed = pd.DataFrame(df_opr_analyzed)
+                else:
+                    df_opr_analyzed = pd.DataFrame()
+            except Exception as e:
+                st.error(f"[Lỗi time series analysis]: {e}")
+                df_opr_analyzed = pd.DataFrame()
             # --- Tabs ---
             tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Hotspot Map", "Trend", "Heatmap", "Forecasting", "Anomaly", "Region Comparison", "📄 Export Report"])
             with tab1:
                 try:
                     st.subheader("Radiation Hotspot Map")
                     st.write("Number of hotspots:", len(hotspot))
-                    st.dataframe(hotspot.head())
+                    if isinstance(hotspot, pd.DataFrame) and hasattr(hotspot, 'head'):
+                        st.dataframe(hotspot.head())
                     if len(hotspot) == 0:
                         st.warning("No hotspots to display on the map!")
                     else:
                         m = visualization.plot_interactive_hotspot_map(hotspot, is_above_col='is_above_who')
                         st_folium(m, width=900, height=600)
                     st.markdown("- <span style='color:red'>Red dot</span>: hotspot above WHO threshold. <span style='color:blue'>Blue dot</span>: below threshold.", unsafe_allow_html=True)
-                    st.dataframe(hotspot[hotspot['is_above_who']].sort_values('mean_radiation', ascending=False), use_container_width=True)
+                    if isinstance(hotspot, pd.DataFrame) and hasattr(hotspot, 'columns') and 'is_above_who' in hotspot.columns:
+                        st.dataframe(hotspot[hotspot['is_above_who']].sort_values('mean_radiation', ascending=False), use_container_width=True)
                 except Exception as e:
                     st.error(f"Hotspot Map tab error: {e}")
             with tab2:
                 try:
                     st.subheader("Radiation Trend Over Time")
-                    fig, ax = plt.subplots(figsize=(12,5))
-                    ax.plot(df_opr_analyzed['date'], df_opr_analyzed['radiation'], label="Measured Value", alpha=0.5)
-                    ax.plot(df_opr_analyzed['date'], df_opr_analyzed['rolling_mean'], label="Rolling mean", color="orange")
-                    ax.scatter(df_opr_analyzed.loc[df_opr_analyzed['is_peak'], 'date'], df_opr_analyzed.loc[df_opr_analyzed['is_peak'], 'radiation'], color="red", label="Anomaly Peak")
-                    ax.axhline(who_threshold, color="purple", linestyle="--", label=f"WHO Threshold ({who_threshold} μSv/h)")
-                    ax.set_title("Radiation Trend Over Time")
-                    ax.set_xlabel("Time")
-                    ax.set_ylabel("μSv/h")
-                    ax.legend()
-                    st.pyplot(fig)
+                    if isinstance(df_opr_analyzed, pd.DataFrame) and not df_opr_analyzed.empty:
+                        fig, ax = plt.subplots(figsize=(12,5))
+                        ax.plot(df_opr_analyzed['date'], df_opr_analyzed['radiation'], label="Measured Value", alpha=0.5)
+                        if hasattr(df_opr_analyzed, 'columns') and 'rolling_mean' in df_opr_analyzed.columns:
+                            ax.plot(df_opr_analyzed['date'], df_opr_analyzed['rolling_mean'], label="Rolling mean", color="orange")
+                        if hasattr(df_opr_analyzed, 'columns') and 'is_peak' in df_opr_analyzed.columns:
+                            ax.scatter(df_opr_analyzed.loc[df_opr_analyzed['is_peak'], 'date'], df_opr_analyzed.loc[df_opr_analyzed['is_peak'], 'radiation'], color="red", label="Anomaly Peak")
+                        ax.axhline(who_threshold, color="purple", linestyle="--", label=f"WHO Threshold ({who_threshold} μSv/h)")
+                        ax.set_title("Radiation Trend Over Time")
+                        ax.set_xlabel("Time")
+                        ax.set_ylabel("μSv/h")
+                        ax.legend()
+                        st.pyplot(fig)
+                    else:
+                        st.info("Not enough data to plot trend.")
                 except Exception as e:
                     st.error(f"Trend tab error: {e}")
             with tab3:
                 try:
                     st.subheader("Radiation Heatmap by Region and Time")
-                    fig2 = plt.figure(figsize=(14,8))
-                    if 'country' in df_opr_analyzed.columns:
-                        visualization.plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="country", time_col="date", freq="M")
+                    if isinstance(df_opr_analyzed, pd.DataFrame) and not df_opr_analyzed.empty:
+                        fig2 = plt.figure(figsize=(14,8))
+                        if hasattr(df_opr_analyzed, 'columns') and 'country' in df_opr_analyzed.columns:
+                            visualization.plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="country", time_col="date", freq="M")
+                        else:
+                            visualization.plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="latitude", time_col="date", freq="M")
+                        st.pyplot(fig2)
                     else:
-                        visualization.plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="latitude", time_col="date", freq="M")
-                    st.pyplot(fig2)
+                        st.info("Not enough data to plot heatmap.")
                 except Exception as e:
                     st.error(f"Heatmap tab error: {e}")
             with tab4:
@@ -168,30 +221,42 @@ if st.session_state['run_analysis']:
                     if len(df_opr) > 30:
                         # Prophet
                         if algo == "Prophet" or algo == "All":
-                            forecast, model = forecasting.forecast_radiation_prophet(df_opr, days=days)
-                            results['Prophet'] = forecast[['ds', 'yhat']].rename(columns={'ds': 'date', 'yhat': 'yhat_prophet'})
+                            try:
+                                forecast, model = forecasting.forecast_radiation_prophet(df_opr, days=days)
+                                results['Prophet'] = forecast[['ds', 'yhat']].rename(columns={'ds': 'date', 'yhat': 'yhat_prophet'})
+                            except Exception as e:
+                                st.error(f"[Forecasting-Prophet] {e}")
                         # LSTM
                         if algo == "LSTM" or algo == "All":
-                            forecast_lstm_df = forecasting.forecast_lstm(df_opr, days=days)
-                            results['LSTM'] = forecast_lstm_df
+                            try:
+                                forecast_lstm_df = forecasting.forecast_lstm(df_opr, days=days)
+                                results['LSTM'] = forecast_lstm_df
+                            except Exception as e:
+                                st.error(f"[Forecasting-LSTM] {e}")
                         # XGBoost
                         if algo == "XGBoost" or algo == "All":
-                            forecast_xgb_df = forecasting.forecast_xgboost(df_opr, days=days)
-                            results['XGBoost'] = forecast_xgb_df
+                            try:
+                                forecast_xgb_df = forecasting.forecast_xgboost(df_opr, days=days)
+                                results['XGBoost'] = forecast_xgb_df
+                            except Exception as e:
+                                st.error(f"[Forecasting-XGBoost] {e}")
                         # Plot comparison
-                        fig, ax = plt.subplots(figsize=(12,5))
-                        ax.plot(df_opr['date'], df_opr['radiation'], label="Observed", alpha=0.5)
-                        if 'Prophet' in results:
-                            ax.plot(results['Prophet']['date'], results['Prophet']['yhat_prophet'], label="Prophet", color="green")
-                        if 'LSTM' in results:
-                            ax.plot(results['LSTM']['date'], results['LSTM']['yhat_lstm'], label="LSTM", color="orange")
-                        if 'XGBoost' in results:
-                            ax.plot(results['XGBoost']['date'], results['XGBoost']['yhat_xgb'], label="XGBoost", color="purple")
-                        ax.set_title(f"Radiation Forecast for Next {days} Days")
-                        ax.set_xlabel("Time")
-                        ax.set_ylabel("μSv/h")
-                        ax.legend()
-                        st.pyplot(fig)
+                        try:
+                            fig, ax = plt.subplots(figsize=(12,5))
+                            ax.plot(df_opr['date'], df_opr['radiation'], label="Observed", alpha=0.5)
+                            if 'Prophet' in results:
+                                ax.plot(results['Prophet']['date'], results['Prophet']['yhat_prophet'], label="Prophet", color="green")
+                            if 'LSTM' in results:
+                                ax.plot(results['LSTM']['date'], results['LSTM']['yhat_lstm'], label="LSTM", color="orange")
+                            if 'XGBoost' in results:
+                                ax.plot(results['XGBoost']['date'], results['XGBoost']['yhat_xgb'], label="XGBoost", color="purple")
+                            ax.set_title(f"Radiation Forecast for Next {days} Days")
+                            ax.set_xlabel("Time")
+                            ax.set_ylabel("μSv/h")
+                            ax.legend()
+                            st.pyplot(fig)
+                        except Exception as e:
+                            st.error(f"[Plot Forecasting] {e}")
                     else:
                         st.info("At least 30 data points are required for forecasting.")
                 except Exception as e:
@@ -200,16 +265,19 @@ if st.session_state['run_analysis']:
                 try:
                     st.subheader("Anomaly Detection (Isolation Forest)")
                     if len(df_opr) > 10:
-                        df_anom = anomaly.detect_anomalies_isolation_forest(df_opr)
-                        fig4, ax4 = plt.subplots(figsize=(12,5))
-                        ax4.plot(df_anom['date'], df_anom['radiation'], label="Measured Value", alpha=0.5)
-                        ax4.scatter(df_anom.loc[df_anom['anomaly'], 'date'], df_anom.loc[df_anom['anomaly'], 'radiation'], color="red", label="Anomaly")
-                        ax4.set_title("Anomaly Detection in Radiation Levels")
-                        ax4.set_xlabel("Time")
-                        ax4.set_ylabel("μSv/h")
-                        ax4.legend()
-                        st.pyplot(fig4)
-                        st.dataframe(df_anom[df_anom['anomaly']], use_container_width=True)
+                        try:
+                            df_anom = anomaly.detect_anomalies_isolation_forest(df_opr)
+                            fig4, ax4 = plt.subplots(figsize=(12,5))
+                            ax4.plot(df_anom['date'], df_anom['radiation'], label="Measured Value", alpha=0.5)
+                            ax4.scatter(df_anom.loc[df_anom['anomaly'], 'date'], df_anom.loc[df_anom['anomaly'], 'radiation'], color="red", label="Anomaly")
+                            ax4.set_title("Anomaly Detection in Radiation Levels")
+                            ax4.set_xlabel("Time")
+                            ax4.set_ylabel("μSv/h")
+                            ax4.legend()
+                            st.pyplot(fig4)
+                            st.dataframe(df_anom[df_anom['anomaly']], use_container_width=True)
+                        except Exception as e:
+                            st.error(f"[Anomaly Detection] {e}")
                     else:
                         st.info("At least 10 data points are required for anomaly detection.")
                 except Exception as e:
