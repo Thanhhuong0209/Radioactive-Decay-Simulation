@@ -4,6 +4,7 @@ import requests
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
 st.info("App is starting... Please wait while data is being loaded and processed.")
+st.write("[DEBUG] Đã import xong các thư viện và bắt đầu load dữ liệu.")
 import data_loader
 import analysis
 import visualization
@@ -44,12 +45,18 @@ if st.sidebar.button("Load & Analyze Data"):
 # --- Load data ---
 @st.cache_data(show_spinner=True)
 def get_data(nrows):
+    st.write(f"[DEBUG] Đang gọi load_opr_measurements với nrows={nrows}")
     return data_loader.load_opr_measurements(nrows=nrows)
 
 df_opr = None
 if st.session_state['run_analysis']:
+    st.write("[DEBUG] Bắt đầu load dữ liệu khi nhấn nút.")
     with st.spinner("Loading data..."):
-        df_opr = get_data(nrows)
+        try:
+            df_opr = get_data(nrows)
+            st.write(f"[DEBUG] Đã load xong dữ liệu, số dòng: {len(df_opr) if df_opr is not None else 0}")
+        except Exception as e:
+            st.error(f"[DEBUG] Lỗi khi load dữ liệu: {e}")
     # Always sample if data is large, before any processing
     if df_opr is not None and len(df_opr) > 100000:
         st.warning("Dataset has more than 100,000 rows. Automatically sampling 100,000 random rows to improve speed and avoid memory errors.")
