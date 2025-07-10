@@ -8,8 +8,11 @@ from streamlit_folium import st_folium
 # (2) Tự động nhận diện cloud
 IS_CLOUD = "streamlit" in socket.gethostname() or os.environ.get("IS_CLOUD") == "1"
 
-st.info("App is starting... Please wait while data is being loaded and processed.")
-st.write("[DEBUG] Đã import xong các thư viện và bắt đầu load dữ liệu.")
+# Hiển thị ID hoặc GID nếu có
+if hasattr(st.session_state, 'ID'):
+    st.info(f"ID: {st.session_state['ID']}")
+elif hasattr(st.session_state, 'GID'):
+    st.info(f"GID: {st.session_state['GID']}")
 
 # (5) Ghi chú vào UI
 st.warning("Note: On Streamlit Cloud or in Demo mode, the app only loads a small sample of data for demonstration. For full data processing, run locally on a machine with sufficient RAM.")
