@@ -1,10 +1,25 @@
-import streamlit as st
 import os
+import socket
+import streamlit as st
 import requests
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
+
+# (2) Tự động nhận diện cloud
+IS_CLOUD = "streamlit" in socket.gethostname() or os.environ.get("IS_CLOUD") == "1"
+
 st.info("App is starting... Please wait while data is being loaded and processed.")
 st.write("[DEBUG] Đã import xong các thư viện và bắt đầu load dữ liệu.")
+
+# (5) Ghi chú vào UI
+st.warning("Note: On Streamlit Cloud or in Demo mode, the app only loads a small sample of data for demonstration. For full data processing, run locally on a machine with sufficient RAM.")
+
+# (3) Cho phép chọn demo mode trên sidebar
+if IS_CLOUD:
+    demo_mode = True
+else:
+    demo_mode = st.sidebar.checkbox("Demo mode (load small sample only)", value=True)
+
 import data_loader
 import analysis
 import visualization
@@ -46,6 +61,9 @@ if st.sidebar.button("Load & Analyze Data"):
 @st.cache_data(show_spinner=True)
 def get_data(nrows):
     st.write(f"[DEBUG] Đang gọi load_opr_measurements với nrows={nrows}")
+    # (4) Chỉ load file nhỏ khi cloud hoặc demo mode
+    if IS_CLOUD or demo_mode:
+        nrows = 1000
     return data_loader.load_opr_measurements(nrows=nrows)
 
 df_opr = None
