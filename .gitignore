@@ -2,3 +2,4 @@ data/measurements.csv
 data/tags.csv
 data/measurements_withoutEnclosedObject.csv
 data/measurements_withoutEnclosedObject.csv
+data/tag.csv
