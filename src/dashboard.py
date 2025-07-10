@@ -3,7 +3,7 @@ import os
 import requests
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
-st.write("PID:", os.getpid())
+st.info("App is starting... Please wait while data is being loaded and processed.")
 import data_loader
 import analysis
 import visualization
