@@ -12,11 +12,11 @@ import gdown
 
 # Danh sách các file Google Drive cần tải
 GDRIVE_FILES = [
-    {"file_id": "13RsFtygqgl-SyE46OE3BCrmMwwOtV4bO", "local_path": "data/file1.csv"},
-    {"file_id": "15ngWIZvVr3-OrzTFmJ7hqt7HqVElcSNm", "local_path": "data/file2.csv"},
-    {"file_id": "1ZQKjQHTJmoR53G1Jon1psxSP4AdHI7Zx", "local_path": "data/file3.csv"},
-    {"file_id": "1QsQU9EBMusa3QvTODUFIGCr9BVmF5DrO", "local_path": "data/file4.csv"},
-    {"file_id": "1B8_L9Kxz4UWNluIP0tdaiNUiM1dGQt7u", "local_path": "data/file5.csv"},
+    {"file_id": "13RsFtygqgl-SyE46OE3BCrmMwwOtV4bO", "local_path": "data/measurements.csv"},
+    {"file_id": "15ngWIZvVr3-OrzTFmJ7hqt7HqVElcSNm", "local_path": "data/measurements_withoutEnclosedObject.csv"},
+    {"file_id": "1ZQKjQHTJmoR53G1Jon1psxSP4AdHI7Zx", "local_path": "data/tag.csv"},
+    {"file_id": "1QsQU9EBMusa3QvTODUFIGCr9BVmF5DrO", "local_path": "data/chernobyl_air_concentration.csv"},
+    {"file_id": "1B8_L9Kxz4UWNluIP0tdaiNUiM1dGQt7u", "local_path": "data/Chernobyl_ Chemical_Radiation.csv"},
 ]
 
 def download_gdrive_files():
