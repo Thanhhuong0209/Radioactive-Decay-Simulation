@@ -7,3 +7,4 @@ streamlit
 filterpy 
 dask[dataframe] 
 streamlit-autorefresh
+streamlit-folium
