@@ -1,8 +1,10 @@
 import sys
 import os
 
-# Thêm src vào path để import các module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# Đảm bảo đường dẫn src là tuyệt đối
+src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
+if src_path not in sys.path:
+    sys.path.append(src_path)
 
-# Import dashboard (toàn bộ giao diện sẽ chạy như cũ)
-import dashboard 
+import dashboard
+ 
