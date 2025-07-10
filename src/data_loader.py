@@ -8,6 +8,31 @@ except ImportError:
     DASK_AVAILABLE = False
 
 import streamlit as st
+import gdown
+
+# Danh sách các file Google Drive cần tải
+GDRIVE_FILES = [
+    {"file_id": "13RsFtygqgl-SyE46OE3BCrmMwwOtV4bO", "local_path": "data/file1.csv"},
+    {"file_id": "15ngWIZvVr3-OrzTFmJ7hqt7HqVElcSNm", "local_path": "data/file2.csv"},
+    {"file_id": "1ZQKjQHTJmoR53G1Jon1psxSP4AdHI7Zx", "local_path": "data/file3.csv"},
+    {"file_id": "1QsQU9EBMusa3QvTODUFIGCr9BVmF5DrO", "local_path": "data/file4.csv"},
+    {"file_id": "1B8_L9Kxz4UWNluIP0tdaiNUiM1dGQt7u", "local_path": "data/file5.csv"},
+]
+
+def download_gdrive_files():
+    for file in GDRIVE_FILES:
+        file_path = file["local_path"]
+        file_id = file["file_id"]
+        url = f"https://drive.google.com/uc?id={file_id}"
+        if not os.path.exists(file_path):
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            print(f"Downloading {file_path} from Google Drive...")
+            gdown.download(url, file_path, quiet=False)
+        else:
+            print(f"File {file_path} already exists. Skipping download.")
+
+# Gọi hàm này ở đầu chương trình hoặc trước khi load dữ liệu
+download_gdrive_files()
 
 def load_opr_measurements(filepath="data/measurements.csv", nrows=None):
     """
