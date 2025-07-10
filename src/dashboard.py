@@ -4,11 +4,11 @@ import requests
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
 st.write("PID:", os.getpid())
-from data_loader import load_opr_measurements
-from analysis import detect_geospatial_peaks, analyze_time_series_opr, plot_radiation_peaks, plot_heatmap_opr
-from visualization import plot_interactive_hotspot_map
-from forecasting import forecast_radiation_prophet
-from anomaly import detect_anomalies_isolation_forest
+import data_loader
+import analysis
+import visualization
+import forecasting
+import anomaly
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -44,7 +44,7 @@ if st.sidebar.button("Load & Analyze Data"):
 # --- Load data ---
 @st.cache_data(show_spinner=True)
 def get_data(nrows):
-    return load_opr_measurements(nrows=nrows)
+    return data_loader.load_opr_measurements(nrows=nrows)
 
 df_opr = None
 if st.session_state['run_analysis']:
@@ -89,9 +89,9 @@ if st.session_state['run_analysis']:
             else:
                 st.sidebar.info("Data does not have a 'country' column, skipping country filter.")
             # Hotspot analysis
-            hotspot = detect_geospatial_peaks(df_opr, grid_size=grid_size, threshold=who_threshold)
+            hotspot = analysis.detect_geospatial_peaks(df_opr, grid_size=grid_size, threshold=who_threshold)
             # Rolling mean, peak analysis
-            df_opr_analyzed = analyze_time_series_opr(df_opr, threshold=who_threshold)
+            df_opr_analyzed = analysis.analyze_time_series_opr(df_opr, threshold=who_threshold)
             # --- Tabs ---
             tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Hotspot Map", "Trend", "Heatmap", "Forecasting", "Anomaly", "Region Comparison", "📄 Export Report"])
             with tab1:
@@ -102,7 +102,7 @@ if st.session_state['run_analysis']:
                     if len(hotspot) == 0:
                         st.warning("No hotspots to display on the map!")
                     else:
-                        m = plot_interactive_hotspot_map(hotspot, is_above_col='is_above_who')
+                        m = visualization.plot_interactive_hotspot_map(hotspot, is_above_col='is_above_who')
                         st_folium(m, width=900, height=600)
                     st.markdown("- <span style='color:red'>Red dot</span>: hotspot above WHO threshold. <span style='color:blue'>Blue dot</span>: below threshold.", unsafe_allow_html=True)
                     st.dataframe(hotspot[hotspot['is_above_who']].sort_values('mean_radiation', ascending=False), use_container_width=True)
@@ -128,9 +128,9 @@ if st.session_state['run_analysis']:
                     st.subheader("Radiation Heatmap by Region and Time")
                     fig2 = plt.figure(figsize=(14,8))
                     if 'country' in df_opr_analyzed.columns:
-                        plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="country", time_col="date", freq="M")
+                        visualization.plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="country", time_col="date", freq="M")
                     else:
-                        plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="latitude", time_col="date", freq="M")
+                        visualization.plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="latitude", time_col="date", freq="M")
                     st.pyplot(fig2)
                 except Exception as e:
                     st.error(f"Heatmap tab error: {e}")
@@ -143,18 +143,15 @@ if st.session_state['run_analysis']:
                     if len(df_opr) > 30:
                         # Prophet
                         if algo == "Prophet" or algo == "All":
-                            from forecasting import forecast_radiation_prophet
-                            forecast, model = forecast_radiation_prophet(df_opr, days=days)
+                            forecast, model = forecasting.forecast_radiation_prophet(df_opr, days=days)
                             results['Prophet'] = forecast[['ds', 'yhat']].rename(columns={'ds': 'date', 'yhat': 'yhat_prophet'})
                         # LSTM
                         if algo == "LSTM" or algo == "All":
-                            from advanced_models import forecast_lstm
-                            forecast_lstm_df = forecast_lstm(df_opr, days=days)
+                            forecast_lstm_df = forecasting.forecast_lstm(df_opr, days=days)
                             results['LSTM'] = forecast_lstm_df
                         # XGBoost
                         if algo == "XGBoost" or algo == "All":
-                            from advanced_models import forecast_xgboost
-                            forecast_xgb_df = forecast_xgboost(df_opr, days=days)
+                            forecast_xgb_df = forecasting.forecast_xgboost(df_opr, days=days)
                             results['XGBoost'] = forecast_xgb_df
                         # Plot comparison
                         fig, ax = plt.subplots(figsize=(12,5))
@@ -178,7 +175,7 @@ if st.session_state['run_analysis']:
                 try:
                     st.subheader("Anomaly Detection (Isolation Forest)")
                     if len(df_opr) > 10:
-                        df_anom = detect_anomalies_isolation_forest(df_opr)
+                        df_anom = anomaly.detect_anomalies_isolation_forest(df_opr)
                         fig4, ax4 = plt.subplots(figsize=(12,5))
                         ax4.plot(df_anom['date'], df_anom['radiation'], label="Measured Value", alpha=0.5)
                         ax4.scatter(df_anom.loc[df_anom['anomaly'], 'date'], df_anom.loc[df_anom['anomaly'], 'radiation'], color="red", label="Anomaly")
@@ -281,9 +278,9 @@ if st.session_state['run_analysis']:
                     try:
                         fig2 = plt.figure(figsize=(10,4))
                         if 'country' in df_opr_analyzed.columns:
-                            plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="country", time_col="date", freq="M")
+                            visualization.plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="country", time_col="date", freq="M")
                         else:
-                            plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="latitude", time_col="date", freq="M")
+                            visualization.plot_heatmap_opr(df_opr_analyzed, value_col="radiation", location_col="latitude", time_col="date", freq="M")
                         buf2 = BytesIO()
                         fig2.savefig(buf2, format="png")
                         plt.close(fig2)
